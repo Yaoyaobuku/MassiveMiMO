@@ -1,0 +1,39 @@
+tau_cf= 1;
+K = 1 ; M=1; nbrOfRealizations = 1; D_sqr = 1000; population = 1;
+taud_sc = 20; tauu_sc = 20; BW = 20e6; NF_dB = 9;
+AVErhod_cf = 200; AVErhou_cf = 100; AVErhop_cf = 100; 
+iteration = 30; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+DistanceControl = 'Uni'; % Control two solutions creat uniformly distributed
+% 'Halton' use Halton sequenc, and 'Uni' use makdedist Uniformly-distribution
+ShadowingControl = 'uncorrelated'; % Control two shadowing correlation model: 'uncorrelated' or 'correlated'
+PowerControl = 'No'; % Two Power Control Mode: 'No' = without Power Control / 'Yes' = Max-Min Power Control
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+d_MK = 10;
+pilot = functionRandomPilotAssignment(tau_cf, tau_cf, nbrOfRealizations);
+Rate_Avrg = []; x = [];
+B = [];
+for i =1:30
+x = [x d_MK];
+[Beta PL z_MK] = functionLargeScaleFading(d_MK, M, K, ShadowingControl, nbrOfRealizations);
+ % Beta = ones(M, K, nbrOfRealizations); % beta_mk = 1
+ B = [B Beta];
+[NoisePower rhod_cf rhou_cf rhop_cf rhod_sc rhou_sc rhoup_sc rhodp_sc] = functionNormalizedTransmitSNRs(M, K, BW, NF_dB, AVErhod_cf, AVErhou_cf, AVErhop_cf);
+[Hchannel Gchannel Wnoise] = functionGchannelGenerating(M, K, tau_cf, Beta, nbrOfRealizations);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%pilot = [[1 0 0 0];[0 1 0 0 ];[0 0 1 0];[0 0 0 0]] %generate pilot
+PilotSet = [];
+random = 1;
+for j=1:K
+       %PilotSet caculates rate
+       PilotSet = [PilotSet pilot(:,random(j))];
+end
+[PilotContamination_avgr, subMConta1] = fitness_contamination(random,pilot,Beta,K,M,nbrOfRealizations);
+[C, Gest, Gamma, Eta] = functionCE2(M, K,Beta,subMConta1, PowerControl, tau_cf, rhop_cf, Gchannel, Wnoise, PilotSet, nbrOfRealizations);
+Rate_start = functionCalculateRateEq24(M, K, rhod_cf, Eta, Gamma, Beta, PilotSet, nbrOfRealizations);
+Rate_Avrg = [Rate_Avrg mean(Rate_start)];
+d_MK = d_MK+20;
+end
+plot(x,Rate_Avrg)
+title(strcat(int2str(K),' Users',int2str(M),' APs'))
+xlabel('Distance Between User And AP (m)')
+ylabel('Rate (Mbits/s)')
